@@ -1,58 +1,23 @@
 package com.lvngx.gamespace
 
+import android.content.Context
 import android.content.pm.PackageManager
 import rikka.shizuku.Shizuku
-import java.io.DataOutputStream
+import rikka.shizuku.ShizukuRemoteProcess
 
 object ShizukuHelper {
-
-    fun isShizukuAvailable(): Boolean {
-        return try {
-            Shizuku.pingBinder()
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    fun hasPermission(): Boolean {
-        return try {
-            if (Shizuku.isPreV11() || Shizuku.getVersion() < 11) {
-                false
-            } else {
-                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    fun requestPermission(requestCode: Int) {
-        try {
-            if (!hasPermission() && Shizuku.pingBinder()) {
-                Shizuku.requestPermission(requestCode)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
+    fun isShizukuInstalled(context: Context): Boolean = runCatching { context.packageManager.getPackageInfo("moe.shizuku.manager", 0) != null }.getOrDefault(false)
+    fun isShizukuRunning(): Boolean = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+    fun hasShizukuPermission(): Boolean = runCatching { if (Shizuku.isPreV11()) false else Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }.getOrDefault(false)
+    fun requestPermission(requestCode: Int) { runCatching { if (!Shizuku.isPreV11() && Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) Shizuku.requestPermission(requestCode) } }
+    
     fun executeShellCommand(command: String): Boolean {
-        return try {
-            if (isShizukuAvailable() && hasPermission()) {
-                val process = Shizuku.newProcess(arrayOf("sh"), null, null)
-                val outputStream = DataOutputStream(process.outputStream)
-                outputStream.writeBytes("$command\n")
-                outputStream.flush()
-                outputStream.writeBytes("exit\n")
-                outputStream.flush()
-                process.waitFor()
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+        return runCatching {
+            if (!isShizukuRunning()) return false
+            val p = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+            p.waitFor()
+            p.exitValue() == 0
+        }.getOrDefault(false)
     }
+    fun tap(x: Float, y: Float) { executeShellCommand("input tap ${x.toInt()} ${y.toInt()}") }
 }
