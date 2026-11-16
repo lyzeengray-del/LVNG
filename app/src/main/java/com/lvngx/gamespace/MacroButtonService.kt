@@ -1,7 +1,6 @@
 package com.lvngx.gamespace
 
 import android.annotation.SuppressLint
-import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -9,7 +8,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,9 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.lifecycle.ViewModelStore
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -52,10 +50,11 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
     private val clickRunnable = object : Runnable {
         override fun run() {
             if (isMacroRunning) {
-                val x = layoutParams.x + 36
-                val y = layoutParams.y + 36
-                ShizukuHelper.executeShellCommand("input tap $x $y")
-                val interval = (1000L / GameSpaceState.macroCps).coerceAtLeast(20L)
+                val x = layoutParams.x + 36f
+                val y = layoutParams.y + 36f
+                ShizukuHelper.tap(x, y)
+                val cps = GameSpaceStore.getMacroCps(this@MacroButtonService)
+                val interval = (1000L / cps).coerceAtLeast(20L)
                 handler.postDelayed(this, interval)
             }
         }
@@ -79,10 +78,15 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
         savedStateRegistryController.performRestore(null)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
+        val (savedX, savedY) = GameSpaceStore.getMacroCoord(this)
+
         floatingView = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@MacroButtonService)
-            setViewTreeViewModelStoreOwner(ViewModelStore())
-            setViewTreeSavedStateRegistryOwner(this@MacroButtonService)
+            setViewTreeViewModelStoreOwner(ViewModelStore().apply {
+                // ViewModelStore owner mapping setup
+            })
+            // Menghindari error SavedStateRegistry pada ComposeView di dalam Service
+            setTag(androidx.lifecycle.ViewTreeLifecycleOwner.get(this).hashCode(), this@MacroButtonService)
 
             setContent {
                 MaterialTheme(
@@ -115,13 +119,16 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
         layoutParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) 
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
+            else 
+                WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 300
-            y = 500
+            x = savedX
+            y = savedY
         }
 
         var initialX = 0
@@ -131,6 +138,7 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
         var isMoving = false
 
         floatingView?.setOnTouchListener { _, event ->
+            val isLocked = GameSpaceStore.isMacroLocked(this)
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = layoutParams.x
@@ -138,13 +146,13 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
                     isMoving = false
-                    if (GameSpaceState.isMacroLocked) {
+                    if (isLocked) {
                         startMacroClick()
                     }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    if (!GameSpaceState.isMacroLocked) {
+                    if (!isLocked) {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
                         if (dx * dx + dy * dy > 25) {
@@ -153,6 +161,7 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
                         if (isMoving) {
                             layoutParams.x = initialX + dx
                             layoutParams.y = initialY + dy
+                            GameSpaceStore.setMacroCoord(this, layoutParams.x, layoutParams.y)
                             try {
                                 windowManager.updateViewLayout(floatingView, layoutParams)
                             } catch (e: Exception) {
@@ -163,11 +172,8 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (GameSpaceState.isMacroLocked) {
+                    if (isLocked) {
                         stopMacroClick()
-                    }
-                    if (!isMoving && !GameSpaceState.isMacroLocked) {
-                        // Clicked while unlocked: could toggle state or open settings
                     }
                     true
                 }
