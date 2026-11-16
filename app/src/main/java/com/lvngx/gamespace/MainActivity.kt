@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,7 +47,7 @@ class MainActivity : ComponentActivity() {
                                 if (!Settings.canDrawOverlays(this)) {
                                     val intent = Intent(
                                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        Uri.parse("package:\$packageName")
+                                        Uri.parse("package:$packageName")
                                     )
                                     startActivity(intent)
                                 } else {
@@ -73,7 +74,7 @@ fun HomeScreen(
     onNavigateToActivation: () -> Unit,
     onStartOverlay: () -> Unit
 ) {
-    var tokenCount by remember { mutableStateOf(35) }
+    val tokenCount by remember { mutableStateOf(35) }
 
     Column(
         modifier = Modifier
@@ -137,7 +138,7 @@ fun HomeScreen(
                     Text(text = "Masuk ke", color = Color.Gray, fontSize = 12.sp)
                     Text(text = "Game Space", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Token: \$tokenCount / 300", color = Color(0xFF38BDF8), fontSize = 12.sp)
+                    Text(text = "Token: $tokenCount / 300", color = Color(0xFF38BDF8), fontSize = 12.sp)
                 }
                 Button(
                     onClick = onStartOverlay,
@@ -334,7 +335,7 @@ fun ActivationScreen(onBack: () -> Unit) {
             }
             Button(
                 onClick = onBack,
-                colors = ButtonDefaults.buttonColors(containerColor = CrimsonPrimary),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Text(text = "KEMBALI", fontSize = 10.sp, color = Color.White)
