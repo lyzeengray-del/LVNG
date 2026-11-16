@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,13 +30,13 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = Color(0xFFE91E5A),
-                    background = Color(0xFF080204),
-                    surface = Color(0xFF160609)
+                    background = Color(0xFF030712),
+                    surface = Color(0xFF0B132B)
                 )
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF080204)
+                    color = Color(0xFF030712)
                 ) {
                     var currentScreen by remember { mutableStateOf("home") }
 
@@ -55,12 +56,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         )
-                        "optimize" -> TouchOptimizeScreen(
-                            onBack = { currentScreen = "home" }
-                        )
-                        "activation" -> ActivationScreen(
-                            onBack = { currentScreen = "home" }
-                        )
+                        "optimize" -> TouchOptimizeScreen(onBack = { currentScreen = "home" })
+                        "activation" -> ActivationScreen(onBack = { currentScreen = "home" })
                     }
                 }
             }
@@ -79,10 +76,15 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF080204))
-            .padding(16.dp),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF030712), Color(0xFF0B132B), Color(0xFF160609))
+                )
+            )
+            .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Header Zayon HUD Style
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -94,62 +96,65 @@ fun HomeScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF220A10))
-                        .border(1.dp, Color(0xFFE91E5A), CircleShape),
+                        .background(Color(0xFF0F172A))
+                        .border(1.5.dp, Color(0xFFE91E5A), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "LV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(text = "Z", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
                 Column {
-                    Text(text = "TOUCH OPTIMIZE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "LVNG-X v5.0", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "ZAYON // CORE HUD", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "LVNG - X v5.0", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
                 }
             }
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF220A10)),
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, Color(0xFF4A0E1C))
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "ID: 47240AAB", color = Color.Gray, fontSize = 11.sp)
+                    Text(text = "ONLINE", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
+        // Main Launcher Card (Crimson Neon Border)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF160609)),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFFE91E5A))
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0B132B).copy(alpha = 0.9f)),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.5.dp, Color(0xFFE91E5A))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "Masuk ke", color = Color.Gray, fontSize = 12.sp)
-                    Text(text = "Game Space", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Token: $tokenCount / 300", color = Color(0xFF38BDF8), fontSize = 12.sp)
+                    Text(text = "SYSTEM ENGINE", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Game Space Launcher", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Macro Engine: Active ($tokenCount tokens)", color = Color.Gray, fontSize = 12.sp)
                 }
                 Button(
                     onClick = onStartOverlay,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    Text(text = "Buka", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(text = "BUKA", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
+        // Quick Navigation Grid
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -157,27 +162,28 @@ fun HomeScreen(
             Button(
                 onClick = onNavigateToOptimize,
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF220A10)),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFF4A0E1C))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f))
             ) {
-                Text(text = "Tes Sentuh", color = Color.White, fontSize = 12.sp)
+                Text(text = "Tes Sentuh", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             Button(
                 onClick = onNavigateToActivation,
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF220A10)),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFF4A0E1C))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Color(0xFFE91E5A).copy(alpha = 0.4f))
             ) {
-                Text(text = "Pusat Aktivasi", color = Color.White, fontSize = 12.sp)
+                Text(text = "Pusat Aktivasi", color = Color(0xFFE91E5A), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
 
+        // Library Section
         Text(
-            text = "Perpustakaan Game (0/10)",
-            color = Color.White,
-            fontSize = 14.sp,
+            text = "PERPUSTAKAAN GAME (0/10)",
+            color = Color(0xFF38BDF8),
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
 
@@ -185,9 +191,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF160609)),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF4A0E1C))
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0B132B)),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0xFF1E293B))
         ) {
             Column(
                 modifier = Modifier
@@ -197,25 +203,25 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Belum ada game",
+                    text = "Belum ada game terdaftar",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Tambahkan game favoritmu supaya LVNG-X bisa mengoptimalkannya.",
+                    text = "Tambahkan game favoritmu untuk performa Zayon maksimal.",
                     color = Color.Gray,
                     fontSize = 12.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Button(
                     onClick = {},
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
-                    shape = RoundedCornerShape(12.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8)),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text(text = "Tambah Game", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(text = "+ Tambah Game", color = Color(0xFF030712), fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -230,8 +236,8 @@ fun TouchOptimizeScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF080204))
-            .padding(16.dp),
+            .background(Color(0xFF030712))
+            .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(
@@ -240,15 +246,15 @@ fun TouchOptimizeScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = "Game Optimize", color = Color.Gray, fontSize = 11.sp)
-                Text(text = "Mapping & Layar Sentuh", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "ZAYON // OPTIMIZER", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Mapping & Layar Sentuh", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             Button(
                 onClick = onBack,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text(text = "KEMBALI", fontSize = 10.sp, color = Color.White)
+                Text(text = "KEMBALI", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -261,12 +267,12 @@ fun TouchOptimizeScreen(onBack: () -> Unit) {
                     onClick = { selectedTab = index },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedTab == index) Color(0xFFE91E5A) else Color(0xFF220A10)
+                        containerColor = if (selectedTab == index) Color(0xFFE91E5A) else Color(0xFF0F172A)
                     ),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, if (selectedTab == index) Color(0xFFE91E5A) else Color(0xFF4A0E1C))
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, if (selectedTab == index) Color(0xFFE91E5A) else Color(0xFF1E293B))
                 ) {
-                    Text(text = title, fontSize = 11.sp, color = Color.White)
+                    Text(text = title, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -275,31 +281,30 @@ fun TouchOptimizeScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF160609)),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFF4A0E1C))
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0B132B)),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0xFFE91E5A).copy(alpha = 0.5f))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 when (selectedTab) {
                     0 -> {
-                        Text(text = "Pengaturan Mapping Tombol", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(text = "Atur posisi tombol on-screen untuk responsivitas maksimal.", color = Color.Gray, fontSize = 12.sp)
+                        Text(text = "Pengaturan Mapping Tombol", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(text = "Atur posisi tombol on-screen dengan presisi tinggi untuk responsivitas maksimal ala Zayon.", color = Color.Gray, fontSize = 13.sp)
                     }
                     1 -> {
-                        Text(text = "Informasi Layar Perangkat", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(text = "Refresh Rate: 60 Hz", color = Color(0xFF38BDF8), fontSize = 12.sp)
-                        Text(text = "Sampling Sentuh: Responsif", color = Color(0xFF38BDF8), fontSize = 12.sp)
-                        Text(text = "Maksimum Jari: 10", color = Color(0xFF38BDF8), fontSize = 12.sp)
+                        Text(text = "Informasi Layar Perangkat", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(text = "Refresh Rate: 120Hz / Max", color = Color(0xFF38BDF8), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Sampling Sentuh: Ultra-Responsif", color = Color(0xFF38BDF8), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     2 -> {
-                        Text(text = "Fix Touch & Kalibrasi", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(text = "Ronde Ketuk: 1 / 3", color = Color.Gray, fontSize = 12.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "Fix Touch & Kalibrasi", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(text = "Status: Siap Kalibrasi", color = Color.Gray, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = {},
                             modifier = Modifier.fillMaxWidth(),
@@ -320,8 +325,8 @@ fun ActivationScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF080204))
-            .padding(16.dp),
+            .background(Color(0xFF030712))
+            .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(
@@ -330,67 +335,33 @@ fun ActivationScreen(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = "Pusat Aktivasi", color = Color.Gray, fontSize = 11.sp)
-                Text(text = "Status Akses Shizuku", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "ZAYON // SECURITY", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Pusat Aktivasi Shizuku", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             Button(
                 onClick = onBack,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text(text = "KEMBALI", fontSize = 10.sp, color = Color.White)
+                Text(text = "KEMBALI", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF160609)),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, Color(0xFFE91E5A))
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0B132B)),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.5.dp, Color(0xFF38BDF8))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(text = "STATUS AKSES", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text(text = "Terbatas", color = Color(0xFFE91E5A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(text = "Aktifkan Shizuku atau Wireless Debugging agar seluruh fitur makro otomatis berjalan sempurna tanpa root.", color = Color.Gray, fontSize = 12.sp)
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Card(
-                modifier = Modifier.weight(1f),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF220A10)),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color(0xFF4A0E1C))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(text = "Panduan Lengkap", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(text = "Langkah aktivasi Shizuku", color = Color.Gray, fontSize = 11.sp)
-                }
-            }
-            Card(
-                modifier = Modifier.weight(1f),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF220A10)),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color(0xFF4A0E1C))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(text = "Akses Shizuku", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(text = "Hubungkan layanan", color = Color.Gray, fontSize = 11.sp)
-                }
+                Text(text = "STATUS KONEKSI", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Shizuku Ready", color = Color(0xFF38BDF8), fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text(text = "Macro API terhubung ke shell sistem untuk eksekusi tanpa root dengan latensi 0ms.", color = Color.Gray, fontSize = 12.sp)
             }
         }
     }
