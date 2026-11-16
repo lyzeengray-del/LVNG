@@ -1,220 +1,219 @@
 package com.lvngx.gamespace
 
-import android.app.Service
+import android.annotation.SuppressLint
+import android.app.*
 import android.content.Intent
-import android.graphics.PixelFormat
-import android.os.IBinder
-import android.view.Gravity
-import android.view.WindowManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.lifecycle.ViewModelStore
-import androidx.savedstate.SavedStateRegistry
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
+import android.content.pm.ServiceInfo
+import android.graphics.*
+import android.graphics.drawable.GradientDrawable
+import android.os.*
+import android.view.*
+import android.widget.*
 
-class FloatingPanelService : LifecycleService(), SavedStateRegistryOwner {
+class FloatingPanelService : Service() {
+    private lateinit var wm: WindowManager
+    private var bubble: View? = null
+    private var panel: View? = null
+    private var crosshair: View? = null
+    private var macroBtn: View? = null
+    private var fpsTxt: TextView? = null
+    private var fpsTracker: RealTimeFpsTracker? = null
+    private var isPanelOpen = false
+    private var isMacroSetting = false
+    private var curFps = 60
+    private var isHolding = false
+    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var runnable: Runnable
 
-    private lateinit var windowManager: WindowManager
-    private var floatingView: ComposeView? = null
-    private val savedStateRegistryController = SavedStateRegistryController.create(this)
-
-    override val savedStateRegistry: SavedStateRegistry
-        get() = savedStateRegistryController.savedStateRegistry
+    private val cNavy = Color.parseColor("#EE060E20")
+    private val cCard = Color.parseColor("#FF0D1B38")
+    private val cCrimson = Color.parseColor("#FFE91E5A")
+    private val cCyan = Color.parseColor("#FF38BDF8")
 
     override fun onCreate() {
         super.onCreate()
-        savedStateRegistryController.performRestore(null)
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        startForegroundNotification()
+        createBubble()
+        createMacroButton()
+        fpsTracker = RealTimeFpsTracker { curFps = it; fpsTxt?.text = "FPS $it" }.also { it.start() }
+        if (GameSpaceStore.isCrosshairEnabled(this)) showCrosshair(true)
+        runnable = object : Runnable {
+            override fun run() {
+                if (!isHolding) return
+                if (ShizukuHelper.isShizukuRunning() && ShizukuHelper.hasShizukuPermission()) {
+                    macroBtn?.let {
+                        val loc = intArrayOf(0, 0); it.getLocationOnScreen(loc)
+                        ShizukuHelper.tap(loc[0] + it.width / 2f, loc[1] + it.height / 2f)
+                    }
+                }
+                handler.postDelayed(this, (1000L / GameSpaceStore.getMacroCps(this@FloatingPanelService)).coerceAtLeast(20L))
+            }
+        }
+    }
 
-        floatingView = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(this@FloatingPanelService)
-            setViewTreeViewModelStoreOwner(ViewModelStore())
-            setViewTreeSavedStateRegistryOwner(this@FloatingPanelService)
+    private fun startForegroundNotification() {
+        val cid = "lvngx_ch"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(cid, "LVNG-X", NotificationManager.IMPORTANCE_LOW))
+        }
+        val notif = Notification.Builder(this, cid).setContentTitle("LVNG-X Active").setSmallIcon(R.drawable.ic_lvngx_logo).build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) startForeground(101, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        else startForeground(101, notif)
+    }
 
-            setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary = Color(0xFFE91E5A),
-                        background = Color(0xFF160609),
-                        surface = Color(0xFF220A10)
-                    )
-                ) {
-                    FloatingControlPanel(
-                        onClose = { stopSelf() },
-                        onToggleMacroButton = { startService(Intent(this@FloatingPanelService, MacroButtonService::class.java)) }
-                    )
+    private fun overlayType() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
+    private fun bg(color: Int, stroke: Int = Color.TRANSPARENT, r: Float = 16f) = GradientDrawable().apply { setColor(color); cornerRadius = r * resources.displayMetrics.density; if (stroke != Color.TRANSPARENT) setStroke(2, stroke) }
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun createBubble() {
+        val view = ImageView(this).apply {
+            setImageResource(R.drawable.ic_lvngx_logo)
+            background = bg(cNavy, cCrimson, 18f)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        val p = WindowManager.LayoutParams(dp(44), dp(44), overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply {
+            gravity = Gravity.TOP or Gravity.START; x = dp(12); y = dp(160)
+        }
+        var sx = 0; var sy = 0; var ix = 0f; var iy = 0f; var moved = false
+        view.setOnTouchListener { _, e ->
+            when (e.action) {
+                MotionEvent.ACTION_DOWN -> { sx = p.x; sy = p.y; ix = e.rawX; iy = e.rawY; moved = false; true }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (e.rawX - ix).toInt(); val dy = (e.rawY - iy).toInt()
+                    if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
+                    p.x = sx + dx; p.y = sy + dy; wm.updateViewLayout(view, p); true
+                }
+                MotionEvent.ACTION_UP -> { if (!moved) togglePanel(); true }
+                else -> false
+            }
+        }
+        bubble = view; wm.addView(view, p)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun createMacroButton() {
+        val (mx, my) = GameSpaceStore.getMacroCoord(this)
+        val view = TextView(this).apply {
+            text = "MACRO"; setTextColor(Color.WHITE); textSize = 11f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+            background = bg(Color.argb(215, 6, 14, 32), cCrimson, 24f)
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        val p = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply {
+            gravity = Gravity.TOP or Gravity.START; x = mx; y = my
+        }
+        var sx = 0; var sy = 0; var ix = 0f; var iy = 0f
+        view.setOnTouchListener { _, e ->
+            val locked = GameSpaceStore.isMacroLocked(this)
+            if (!locked || isMacroSetting) {
+                when (e.action) {
+                    MotionEvent.ACTION_DOWN -> { sx = p.x; sy = p.y; ix = e.rawX; iy = e.rawY; true }
+                    MotionEvent.ACTION_MOVE -> {
+                        p.x = sx + (e.rawX - ix).toInt(); p.y = sy + (e.rawY - iy).toInt()
+                        wm.updateViewLayout(view, p); GameSpaceStore.setMacroCoord(this, p.x, p.y); true
+                    }
+                    else -> false
+                }
+            } else {
+                when (e.action) {
+                    MotionEvent.ACTION_DOWN -> { isHolding = true; handler.post(runnable); view.scaleX = 0.92f; view.scaleY = 0.92f; true }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { isHolding = false; handler.removeCallbacks(runnable); view.scaleX = 1f; view.scaleY = 1f; true }
+                    else -> false
                 }
             }
         }
+        macroBtn = view; wm.addView(view, p)
+    }
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 40
-            y = 100
+    private fun togglePanel() { if (isPanelOpen) closePanel() else openPanel() }
+    private fun closePanel() { panel?.let { runCatching { wm.removeView(it) } }; panel = null; isPanelOpen = false; isMacroSetting = false }
+
+    @SuppressLint("SetTextI18n")
+    private fun openPanel() {
+        closePanel(); isPanelOpen = true
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; background = bg(cNavy, cCrimson, 20f); setPadding(dp(16), dp(14), dp(16), dp(16))
+        }
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        header.addView(TextView(this).apply { text = "LVNG-X GAME SPACE"; setTextColor(Color.WHITE); textSize = 14f; typeface = Typeface.DEFAULT_BOLD; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+        header.addView(TextView(this).apply { text = "  X "; setTextColor(cCrimson); textSize = 16f; typeface = Typeface.DEFAULT_BOLD; setOnClickListener { closePanel() } })
+        root.addView(header)
+        root.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(10), dp(10)) })
+
+        if (isMacroSetting) {
+            val cps = GameSpaceStore.getMacroCps(this)
+            val locked = GameSpaceStore.isMacroLocked(this)
+            root.addView(TextView(this).apply { text = "PENGATURAN MACRO ($cps CPS)"; setTextColor(Color.WHITE); textSize = 13f; typeface = Typeface.DEFAULT_BOLD })
+            root.addView(TextView(this).apply { text = "Geser tombol transparan MACRO di layar, lalu kunci posisinya."; setTextColor(cCyan); textSize = 11f })
+            root.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)) })
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            row.addView(Button(this).apply { text = "-"; setOnClickListener { GameSpaceStore.setMacroCps(this@FloatingPanelService, cps - 2); openPanel() } })
+            row.addView(TextView(this).apply { text = "$cps Klik/detik"; setTextColor(Color.WHITE); gravity = Gravity.CENTER; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+            row.addView(Button(this).apply { text = "+"; setOnClickListener { GameSpaceStore.setMacroCps(this@FloatingPanelService, cps + 2); openPanel() } })
+            root.addView(row)
+            root.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(10), dp(10)) })
+            root.addView(TextView(this).apply {
+                text = if (locked) "BUKA KUNCI POSISI" else "SIMPAN DAN KUNCI POSISI"
+                setTextColor(Color.WHITE); textSize = 12f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+                background = bg(if (locked) Color.parseColor("#FFD97706") else cCrimson, Color.TRANSPARENT, 10f)
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                setOnClickListener { GameSpaceStore.setMacroLocked(this@FloatingPanelService, !locked); closePanel() }
+            })
+        } else {
+            val r1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            r1.addView(makeTile("BOOST", "Clear RAM") {
+                val freed = PerformanceBooster.boostMemory(this)
+                Toast.makeText(this, "Boosted +$freed MB", Toast.LENGTH_SHORT).show()
+            })
+            r1.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)) })
+            var audio = GameSpaceStore.isAudioBoost(this)
+            r1.addView(makeTile("AUDIO", if (audio) "FX ON" else "FX OFF") {
+                audio = !audio; GameSpaceStore.setAudioBoost(this, audio); PerformanceBooster.toggleAudioFx(this, audio); openPanel()
+            })
+            r1.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)) })
+            r1.addView(makeTile("MACRO", "Hold & Setting") { isMacroSetting = true; openPanel() })
+            root.addView(r1)
         }
 
-        try {
-            windowManager.addView(floatingView, params)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        val p = WindowManager.LayoutParams(dp(300), WindowManager.LayoutParams.WRAP_CONTENT, overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.CENTER }
+        panel = root; wm.addView(root, p)
+    }
+
+    private fun makeTile(title: String, sub: String, onClick: () -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+            background = bg(cCard, cCrimson, 12f)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnClickListener { onClick() }
+            addView(TextView(this@FloatingPanelService).apply { text = title; setTextColor(Color.WHITE); textSize = 11f; typeface = Typeface.DEFAULT_BOLD })
+            addView(TextView(this@FloatingPanelService).apply { text = sub; setTextColor(cCrimson); textSize = 10f })
         }
+    }
+
+    private fun showCrosshair(show: Boolean) {
+        crosshair?.let { runCatching { wm.removeView(it) } }; crosshair = null
+        if (!show) return
+        val v = object : View(this) {
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = cCrimson; style = Paint.Style.STROKE; strokeWidth = 4f }
+            val c = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = cCyan; style = Paint.Style.FILL }
+            override fun onDraw(canvas: Canvas) {
+                canvas.drawCircle(width / 2f, height / 2f, 16f, p)
+                canvas.drawCircle(width / 2f, height / 2f, 4f, c)
+            }
+        }
+    crosshair = v
+        wm.addView(v, WindowManager.LayoutParams(dp(64), dp(64), overlayType(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.CENTER })
     }
 
     override fun onDestroy() {
+        fpsTracker?.stop()
+        bubble?.let { runCatching { wm.removeView(it) } }
+        panel?.let { runCatching { wm.removeView(it) } }
+        crosshair?.let { runCatching { wm.removeView(it) } }
+        macroBtn?.let { runCatching { wm.removeView(it) } }
         super.onDestroy()
-        if (floatingView != null) {
-            try {
-                windowManager.removeView(floatingView)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
-}
-
-@Composable
-fun FloatingControlPanel(onClose: () -> Unit, onToggleMacroButton: () -> Unit) {
-    var performanceMode by remember { mutableStateOf(GameSpaceState.performanceMode) }
-    var crosshairEnabled by remember { mutableStateOf(GameSpaceState.isCrosshairEnabled) }
-    var macroCps by remember { mutableStateOf(GameSpaceState.macroCps.toFloat()) }
-    var isLocked by remember { mutableStateOf(GameSpaceState.isMacroLocked) }
-
-    Box(
-        modifier = Modifier
-            .width(310.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF160609))
-            .border(1.dp, Color(0xFFE91E5A), RoundedCornerShape(16.dp))
-            .padding(14.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "LVNG-X CONTROL",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Button(
-                    onClick = onClose,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
-                    modifier = Modifier.height(26.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                ) {
-                    Text(text = "TUTUP", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            HorizontalDivider(color = Color(0xFF4A0E1C), thickness = 1.dp)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = "FPS: 60", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Text(text = "RAM: 42%", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Text(text = "CPU: 39 C", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            }
-
-            Text(text = "Mode Performa", color = Color.Gray, fontSize = 11.sp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                listOf("Eco", "Balanced", "Ultra").forEach { mode ->
-                    Button(
-                        onClick = {
-                            performanceMode = mode
-                            GameSpaceState.performanceMode = mode
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (performanceMode == mode) Color(0xFFE91E5A) else Color(0xFF220A10)
-                        ),
-                        modifier = Modifier.height(30.dp),
-                        contentPadding = PaddingValues(horizontal = 6.dp)
-                    ) {
-                        Text(text = mode, fontSize = 10.sp, color = Color.White)
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Virtual Crosshair", color = Color.White, fontSize = 12.sp)
-                Switch(
-                    checked = crosshairEnabled,
-                    onCheckedChange = {
-                        crosshairEnabled = it
-                        GameSpaceState.isCrosshairEnabled = it
-                    }
-                )
-            }
-
-            Text(text = "Kecepatan Macro: \${macroCps.toInt()} CPS", color = Color.Gray, fontSize = 11.sp)
-            Slider(
-                value = macroCps,
-                onValueChange = {
-                    macroCps = it
-                    GameSpaceState.macroCps = it.toInt()
-                },
-                valueRange = 1f..50f
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Kunci Posisi Tombol", color = Color.White, fontSize = 12.sp)
-                Switch(
-                    checked = isLocked,
-                    onCheckedChange = {
-                        isLocked = it
-                        GameSpaceState.isMacroLocked = it
-                    }
-                )
-            }
-
-            Button(
-                onClick = onToggleMacroButton,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E5A)),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text(text = "AKTIFKAN TOMBOL MACRO", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
+    override fun onBind(i: Intent?): IBinder? = null
 }
