@@ -3,7 +3,6 @@ package com.lvngx.gamespace
 import android.content.Context
 import android.content.pm.PackageManager
 import rikka.shizuku.Shizuku
-import rikka.shizuku.ShizukuRemoteProcess
 
 object ShizukuHelper {
     fun isShizukuInstalled(context: Context): Boolean = runCatching { context.packageManager.getPackageInfo("moe.shizuku.manager", 0) != null }.getOrDefault(false)
@@ -14,7 +13,9 @@ object ShizukuHelper {
     fun executeShellCommand(command: String): Boolean {
         return runCatching {
             if (!isShizukuRunning()) return false
-            val p = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val p = method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
             p.waitFor()
             p.exitValue() == 0
         }.getOrDefault(false)
