@@ -82,11 +82,7 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
 
         floatingView = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@MacroButtonService)
-            setViewTreeViewModelStoreOwner(ViewModelStore().apply {
-                // ViewModelStore owner mapping setup
-            })
-            // Menghindari error SavedStateRegistry pada ComposeView di dalam Service
-            setTag(androidx.lifecycle.ViewTreeLifecycleOwner.get(this).hashCode(), this@MacroButtonService)
+            setViewTreeViewModelStoreOwner(ViewModelStore())
 
             setContent {
                 MaterialTheme(
