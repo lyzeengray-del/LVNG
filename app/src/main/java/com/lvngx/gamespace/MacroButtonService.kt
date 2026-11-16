@@ -28,13 +28,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 
-class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
+class MacroButtonService : LifecycleService(), SavedStateRegistryOwner, ViewModelStoreOwner {
 
     private lateinit var windowManager: WindowManager
     private var floatingView: ComposeView? = null
@@ -43,6 +44,10 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
 
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
+
+    private val appViewModelStore = ViewModelStore()
+    override val viewModelStore: ViewModelStore
+        get() = appViewModelStore
 
     private val handler = Handler(Looper.getMainLooper())
     private var isMacroRunning = false
@@ -82,7 +87,8 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
 
         floatingView = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@MacroButtonService)
-            setViewTreeViewModelStoreOwner(ViewModelStore())
+            setViewTreeViewModelStoreOwner(this@MacroButtonService)
+            setViewTreeSavedStateRegistryOwner(this@MacroButtonService)
 
             setContent {
                 MaterialTheme(
@@ -186,6 +192,7 @@ class MacroButtonService : LifecycleService(), SavedStateRegistryOwner {
 
     override fun onDestroy() {
         stopMacroClick()
+        appViewModelStore.clear()
         super.onDestroy()
         if (floatingView != null) {
             try {
